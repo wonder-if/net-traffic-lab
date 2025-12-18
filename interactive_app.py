@@ -62,6 +62,9 @@ def semi_supervised_view():
         horizontal=True,
         key="semi_mode",
     )
+    if "semi_loaded" not in st.session_state:
+        st.session_state.semi_loaded = False
+
     if mode == "立即运行并生成结果":
         st.warning("将调用 semi_supervised_experiment.py 运行一次 sweep，可能耗时。")
         if st.button("立即生成 USTC 半监督结果", key="semi_run"):
@@ -76,6 +79,13 @@ def semi_supervised_view():
                 st.error("运行失败，请检查日志或在终端单独执行。")
             else:
                 st.success("生成完成，可以查看结果。")
+    else:
+        if st.button("加载已有结果", key="semi_load"):
+            st.session_state.semi_loaded = True
+
+    if not st.session_state.semi_loaded:
+        st.info("点击上面的按钮后再显示已有结果。")
+        return
 
     summary_path = outputs_dir / "summary_results.csv"
     if summary_path.exists():
@@ -125,6 +135,9 @@ def stability_view():
         horizontal=True,
         key="stable_mode",
     )
+    if "stable_loaded" not in st.session_state:
+        st.session_state.stable_loaded = False
+
     if mode == "立即运行并生成结果":
         st.warning("将调用 ids2017_feature_stability.py，运行随机森林多种子分析，可能耗时。")
         if st.button("立即生成 IDS2017 特征稳定性结果", key="stable_run"):
@@ -138,6 +151,13 @@ def stability_view():
                 st.error("运行失败，请检查日志或在终端单独执行。")
             else:
                 st.success("生成完成，可以查看结果。")
+    else:
+        if st.button("加载已有结果", key="stable_load"):
+            st.session_state.stable_loaded = True
+
+    if not st.session_state.stable_loaded:
+        st.info("点击上面的按钮后再显示已有结果。")
+        return
 
     feat_csv = out_dir / "feature_stability.csv"
     if feat_csv.exists():

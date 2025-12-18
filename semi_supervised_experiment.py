@@ -63,9 +63,14 @@ def build_dataset(
     max_per_class: int,
     seed: int,
 ) -> Tuple[np.ndarray, np.ndarray, Dict[int, str]]:
+    if not data_dir.exists():
+        raise FileNotFoundError(f"Data directory not found: {data_dir}")
+    csv_files = sorted(data_dir.glob("*.csv"))
+    if not csv_files:
+        raise FileNotFoundError(f"No CSV files found in {data_dir}. Place USTC CSVs there (e.g., 0.csv, 1.csv, ...).")
     X_list, y_list = [], []
     class_names = {}
-    for csv_path in sorted(data_dir.glob("*.csv")):
+    for csv_path in csv_files:
         class_id = int(csv_path.stem)
         class_names[class_id] = csv_path.stem
         Xi, yi = load_class_file(csv_path, class_id, max_per_class, seed)
@@ -349,7 +354,7 @@ def main():
 
     set_seed(args.seed)
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    print("Loading data...")
+    print(f"Loading data from {args.data_dir} ...")
     X, y, class_names = build_dataset(args.data_dir, args.max_per_class, args.seed)
     ratios = None
     if args.labeled_ratios:
