@@ -230,7 +230,7 @@ def stability_view():
 def incremental_view():
     st.header("Incremental Learning (USTC)")
     data_dir = st.text_input("USTC 数据目录", value="ustc_all")
-    model_path = st.text_input("增量模型 checkpoint", value="incremental/ustc_model")
+    model_path = st.text_input("增量模型 checkpoint", value="incremental/ustc_model/15_ustcALL_0.pt")
     max_per_class = st.number_input(
         "每类最大样本（评估用）", min_value=200, max_value=5000, value=2000, step=100
     )
