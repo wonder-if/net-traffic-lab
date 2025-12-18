@@ -15,6 +15,7 @@ import json
 import pandas as pd
 import streamlit as st
 from PIL import Image
+import ids2017_explain_adv as iea
 
 
 def load_image_safe(path: Path):
@@ -202,11 +203,94 @@ def main():
         """
     )
 
-    tab1, tab2 = st.tabs(["Semi-Supervised", "Stable Features"])
+    tab1, tab2, tab3 = st.tabs(["Semi-Supervised", "Stable Features", "Explainability & Adversarial"])
     with tab1:
         semi_supervised_view()
     with tab2:
         stability_view()
+    with tab3:
+        explain_adv_view()
+
+
+def explain_adv_view():
+    st.header("Explainability & Adversarial (IDS2017)")
+    data_path = st.text_input("数据路径", value="ids2017/data.csv")
+    ckpt_path = st.text_input("模型 checkpoint 路径", value="ids2017/11ids2017.pt")
+    max_rows = st.number_input("最多加载行数", min_value=1000, max_value=80000, value=8000, step=1000)
+
+    if "iea_loaded" not in st.session_state:
+        st.session_state.iea_loaded = False
+        st.session_state.iea_data = None
+        st.session_state.iea_model = None
+        st.session_state.iea_labels = None
+        st.session_state.iea_feat_names = None
+
+    if st.button("加载数据与模型", key="iea_load"):
+        try:
+            X, y, feat_names, label_names = iea.load_dataset(Path(data_path), max_rows=max_rows)
+            model = iea.load_model(Path(ckpt_path), input_dim=X.shape[1], num_classes=len(label_names))
+            st.session_state.iea_data = (X, y)
+            st.session_state.iea_model = model
+            st.session_state.iea_labels = label_names
+            st.session_state.iea_feat_names = feat_names
+            st.session_state.iea_loaded = True
+            st.success(f"已加载: 样本 {len(y)}, 特征 {len(feat_names)}, 类别 {len(label_names)}")
+        except Exception as e:
+            st.error(f"加载失败: {e}")
+            st.session_state.iea_loaded = False
+
+    if not st.session_state.iea_loaded:
+        st.info("请先点击上方按钮加载数据和模型。")
+        return
+
+    X, y = st.session_state.iea_data
+    label_names = st.session_state.iea_labels
+    feat_names = st.session_state.iea_feat_names
+    model = st.session_state.iea_model
+
+    idx = st.slider("选择样本索引", min_value=0, max_value=len(y) - 1, value=0, step=1)
+    epsilon = st.slider("FGSM epsilon", min_value=0.0, max_value=0.3, value=0.05, step=0.01)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("生成可解释性", key="iea_explain"):
+            sample = X[idx]
+            result = iea.predict_and_explain(model, sample, target_label=None)
+            probs = iea.probs_to_table(result["probs"], label_names, top=5)
+            topk = iea.topk_to_table(result["attribution"], feat_names, k=12)
+            out_dir = Path("ids2017_explain_outputs")
+            out_dir.mkdir(exist_ok=True)
+            chart_path = iea.bar_chart_topk(topk, "Top attributions (clean)", out_dir / "clean_topk.png")
+            st.subheader("预测概率 Top5")
+            st.table(probs)
+            st.subheader("特征归因 Top12")
+            st.table(topk)
+            st.image(Image.open(chart_path), caption="归因柱状图")
+
+    with col2:
+        if st.button("生成对抗样本并解释", key="iea_adv"):
+            sample = X[idx]
+            true_label = int(y[idx])
+            x_adv, clean_res, adv_res = iea.fgsm_attack(model, sample, true_label=true_label, epsilon=epsilon)
+            out_dir = Path("ids2017_explain_outputs")
+            out_dir.mkdir(exist_ok=True)
+            clean_topk = iea.topk_to_table(clean_res["attribution"], feat_names, k=8)
+            adv_topk = iea.topk_to_table(adv_res["attribution"], feat_names, k=8)
+            chart_clean = iea.bar_chart_topk(clean_topk, "Clean top attributions", out_dir / "clean_adv.png")
+            chart_adv = iea.bar_chart_topk(adv_topk, "Adversarial top attributions", out_dir / "adv_adv.png")
+
+            st.subheader("干净样本预测 Top5")
+            st.table(iea.probs_to_table(clean_res["probs"], label_names, top=5))
+            st.subheader("对抗样本预测 Top5")
+            st.table(iea.probs_to_table(adv_res["probs"], label_names, top=5))
+
+            st.subheader("归因对比")
+            st.image(Image.open(chart_clean), caption="干净样本归因")
+            st.image(Image.open(chart_adv), caption="对抗样本归因")
+
+            st.info(f"原标签: {label_names[true_label] if true_label < len(label_names) else true_label}; "
+                    f"干净预测: {label_names[clean_res['pred']] if clean_res['pred'] < len(label_names) else clean_res['pred']}; "
+                    f"对抗预测: {label_names[adv_res['pred']] if adv_res['pred'] < len(label_names) else adv_res['pred']}")
 
 
 if __name__ == "__main__":

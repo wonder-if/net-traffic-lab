@@ -18,6 +18,7 @@ ids2017/label.xlsx
 ids2017/*.pt
 cic-ids2017/
 tmpout/
+resource/
 
 # Logs
 *.log
