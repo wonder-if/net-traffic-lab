@@ -1,0 +1,51 @@
+feature_a,feature_b,count
+Destination Port,Fwd Packet Length Max,3
+Destination Port,Bwd Packet Length Min,3
+Destination Port,Flow IAT Mean,3
+Destination Port,Init_Win_bytes_forward,3
+Destination Port,Init_Win_bytes_backward,3
+Destination Port,min_seg_size_forward,3
+Fwd Packet Length Max,Bwd Packet Length Min,3
+Fwd Packet Length Max,Flow IAT Mean,3
+Fwd Packet Length Max,Init_Win_bytes_forward,3
+Fwd Packet Length Max,Init_Win_bytes_backward,3
+Fwd Packet Length Max,min_seg_size_forward,3
+Bwd Packet Length Min,Flow IAT Mean,3
+Bwd Packet Length Min,Init_Win_bytes_forward,3
+Bwd Packet Length Min,Init_Win_bytes_backward,3
+Bwd Packet Length Min,min_seg_size_forward,3
+Flow IAT Mean,Init_Win_bytes_forward,3
+Flow IAT Mean,Init_Win_bytes_backward,3
+Flow IAT Mean,min_seg_size_forward,3
+Init_Win_bytes_forward,Init_Win_bytes_backward,3
+Init_Win_bytes_forward,min_seg_size_forward,3
+Init_Win_bytes_backward,min_seg_size_forward,3
+Destination Port,Subflow Fwd Bytes,2
+Fwd Packet Length Max,Subflow Fwd Bytes,2
+Bwd Packet Length Min,Subflow Fwd Bytes,2
+Flow IAT Mean,Subflow Fwd Bytes,2
+Subflow Fwd Bytes,Init_Win_bytes_forward,2
+Subflow Fwd Bytes,Init_Win_bytes_backward,2
+Subflow Fwd Bytes,min_seg_size_forward,2
+Destination Port,Packet Length Mean,2
+Fwd Packet Length Max,Packet Length Mean,2
+Bwd Packet Length Min,Packet Length Mean,2
+Flow IAT Mean,Packet Length Mean,2
+Packet Length Mean,Init_Win_bytes_forward,2
+Packet Length Mean,Init_Win_bytes_backward,2
+Packet Length Mean,min_seg_size_forward,2
+Destination Port,Fwd Packet Length Mean,1
+Destination Port,Max Packet Length,1
+Fwd Packet Length Max,Fwd Packet Length Mean,1
+Fwd Packet Length Max,Max Packet Length,1
+Fwd Packet Length Mean,Bwd Packet Length Min,1
+Fwd Packet Length Mean,Flow IAT Mean,1
+Fwd Packet Length Mean,Max Packet Length,1
+Fwd Packet Length Mean,Subflow Fwd Bytes,1
+Fwd Packet Length Mean,Init_Win_bytes_forward,1
+Fwd Packet Length Mean,Init_Win_bytes_backward,1
+Fwd Packet Length Mean,min_seg_size_forward,1
+Bwd Packet Length Min,Max Packet Length,1
+Flow IAT Mean,Max Packet Length,1
+Max Packet Length,Subflow Fwd Bytes,1
+Max Packet Length,Init_Win_bytes_forward,1
