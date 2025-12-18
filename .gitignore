@@ -1,0 +1,29 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+.venv/
+venv/
+env/
+.idea/
+.vscode/
+
+# Data and large artifacts
+ustc_all/
+ustc_all.zip
+ids2017/data.csv
+ids2017/label.xlsx
+ids2017/*.pt
+cic-ids2017/
+feature_outputs/
+ids2017_feature_outputs/
+outputs/
+tmpout/
+
+# Images and generated visuals
+*.png
+
+# Logs
+*.log
