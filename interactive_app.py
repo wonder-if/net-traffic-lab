@@ -50,6 +50,87 @@ def run_command(cmd: str, label: str, expected_epochs: int | None = None):
         return False
 
 
+def semi_supervised_view():
+    st.header("Semi-Supervised Traffic Classification")
+    outputs_dir = Path("outputs")
+
+    mode = st.radio(
+        "数据来源",
+        ["使用已有结果", "立即运行并生成结果"],
+        horizontal=True,
+        key="semi_mode",
+    )
+    if "semi_loaded" not in st.session_state:
+        st.session_state.semi_loaded = False
+
+    if mode == "立即运行并生成结果":
+        st.warning("将调用 semi_supervised_experiment.py 运行一次 sweep，可能耗时。")
+        if st.button("立即生成半监督结果", key="semi_run"):
+            cmd = (
+                "python semi_supervised_experiment.py "
+                "--max-per-class 1000 --test-per-class 200 "
+                "--unlabeled-cap-per-class 600 --epochs 8 "
+                "--labeled-ratios 0.01,0.02,0.05,0.1,0.2,0.5"
+            )
+            ok = run_command(cmd, "运行半监督实验", expected_epochs=8 * 6)
+            if not ok:
+                st.error("运行失败，请检查日志或在终端单独执行。")
+            else:
+                st.success("生成完成，可以查看结果。")
+    else:
+        if st.button("加载已有结果", key="semi_load"):
+            st.session_state.semi_loaded = True
+
+    if not st.session_state.semi_loaded:
+        st.info("点击上面的按钮后再显示已有结果。")
+        return
+
+    summary_path = outputs_dir / "summary_results.csv"
+    if summary_path.exists():
+        st.subheader("Aggregated sweep results")
+        df = pd.read_csv(summary_path)
+        st.dataframe(df)
+        if "ratio" in df.columns and "test_acc_best" in df.columns:
+            try:
+                df_plot = df.copy()
+                df_plot["ratio"] = pd.to_numeric(df_plot["ratio"], errors="coerce")
+                df_plot = df_plot.dropna(subset=["ratio"])
+                st.line_chart(df_plot.set_index("ratio")["test_acc_best"], height=220)
+            except Exception:
+                pass
+    else:
+        st.info("No summary_results.csv found in outputs/. Run semi_supervised_experiment.py first.")
+        return
+
+    run_dirs = sorted([p for p in outputs_dir.iterdir() if p.is_dir()])
+    if not run_dirs:
+        st.warning("No run subdirectories detected in outputs/.")
+        return
+
+    selected = st.selectbox("Choose a run folder to inspect", run_dirs, format_func=lambda p: p.name)
+    metrics_path = selected / "metrics.json"
+    if metrics_path.exists():
+        with open(metrics_path) as f:
+            metrics = json.load(f)
+        st.write("Metrics", metrics)
+    else:
+        st.warning(f"{metrics_path} missing.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        img = load_image_safe(selected / "learning_curves.png")
+        if img:
+            st.image(img, caption="Learning curves")
+    with col2:
+        img = load_image_safe(selected / "confusion_matrix.png")
+        if img:
+            st.image(img, caption="Confusion matrix")
+
+    tsne_img = load_image_safe(selected / "tsne.png")
+    if tsne_img:
+        st.image(tsne_img, caption="t-SNE of learned features", use_column_width=True)
+
+
 def stability_view():
     st.header("Stable Feature Extraction (CIC-IDS2017)")
     out_dir = Path("ids2017_feature_outputs")
@@ -114,6 +195,66 @@ def stability_view():
     corr_img = load_image_safe(out_dir / "rank_correlation.png")
     if corr_img:
         st.image(corr_img, caption="Rank correlation across seeds", use_column_width=True)
+
+
+def incremental_view():
+    st.header("Incremental Learning (Traffic)")
+    mode = st.radio(
+        "选择模式",
+        ["查看已有可视化", "运行评估"],
+        horizontal=True,
+        key="inc_mode",
+    )
+
+    if mode == "查看已有可视化":
+        vis_dir = Path("incremental/visualizations")
+        if st.button("加载已有可视化", key="inc_load"):
+            loss_img = load_image_safe(vis_dir / "training_loss.png")
+            acc_img = load_image_safe(vis_dir / "accuracy_evolution.png")
+            cm_img = load_image_safe(vis_dir / "confusion_matrix.png")
+            report_path = vis_dir / "training_report.txt"
+
+            if loss_img or acc_img:
+                col1, col2 = st.columns(2)
+                with col1:
+                    if loss_img:
+                        st.image(loss_img, caption="Training Loss (incremental)")
+                with col2:
+                    if acc_img:
+                        st.image(acc_img, caption="Accuracy Evolution (incremental)")
+            if cm_img:
+                st.image(cm_img, caption="Confusion Matrix (incremental)", use_column_width=True)
+            if report_path.exists():
+                with open(report_path, "r", encoding="utf-8", errors="ignore") as f:
+                    txt = f.read()
+                with st.expander("训练报告", expanded=False):
+                    st.text(txt)
+            if not any([loss_img, acc_img, cm_img, report_path.exists()]):
+                st.info("未找到 incremental/visualizations 下的可视化文件。")
+
+    else:
+        data_dir = st.text_input("数据目录", value="ustc_all")
+        model_path = st.text_input(
+            "增量模型 checkpoint", value="incremental/ustc_model/15_ustcALL_0.pt"
+        )
+        max_per_class = st.number_input(
+            "每类最大样本（评估用）", min_value=200, max_value=5000, value=2000, step=100
+        )
+
+        if st.button("评估增量模型", key="inc_eval"):
+            try:
+                from incremental_eval import evaluate
+
+                with st.spinner("加载并评估增量模型..."):
+                    acc, y_true, y_pred = evaluate(
+                        Path(model_path),
+                        Path(data_dir),
+                        max_per_class=max_per_class,
+                    )
+                st.success(f"增量模型精度: {acc:.4f}")
+                st.write("样本数:", len(y_true))
+            except Exception as e:
+                st.error(f"评估失败: {e}")
 
 
 def explain_adv_view():
@@ -221,16 +362,24 @@ def main():
     st.title("Network Traffic Learning Lab")
     st.markdown(
         """
-        聚焦 IDS2017 数据集的特征稳定性与对抗可解释性。
+        四个子页签覆盖不同任务：
+        - Semi-supervised: 半监督分类 sweep、学习曲线与混淆矩阵。
         - Stable Features: 多种子随机森林重要性与频次、相关性。
+        - Incremental: 增量学习可视化与评估。
         - Explainability & Adversarial: 梯度归因、FGSM 对抗与检测。
         """
     )
 
-    tab1, tab2 = st.tabs(["Stable Features", "Explainability & Adversarial"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["Semi-Supervised", "Stable Features", "Incremental", "Explainability & Adversarial"]
+    )
     with tab1:
-        stability_view()
+        semi_supervised_view()
     with tab2:
+        stability_view()
+    with tab3:
+        incremental_view()
+    with tab4:
         explain_adv_view()
 
 
