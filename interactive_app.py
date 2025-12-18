@@ -45,7 +45,9 @@ def run_command(cmd: str, label: str):
             prog.progress(step, text=f"{label}...")
         ret = proc.wait()
         prog.progress(100, text=f"Finished: {label} (exit {ret})")
-        st.code("\n".join(output[-200:]), language="bash")
+        log_text = "\n".join(output[-200:])
+        with st.expander(f"{label} 日志", expanded=False):
+            st.code(log_text or "(no output)", language="bash")
         return ret == 0
     except Exception as e:
         prog.progress(0, text=f"Failed: {label}")
@@ -93,6 +95,15 @@ def semi_supervised_view():
         st.subheader("Aggregated sweep results")
         df = pd.read_csv(summary_path)
         st.dataframe(df)
+        # Accuracy vs ratio
+        if "ratio" in df.columns and "test_acc_best" in df.columns:
+            try:
+                df_plot = df.copy()
+                df_plot["ratio"] = pd.to_numeric(df_plot["ratio"], errors="coerce")
+                df_plot = df_plot.dropna(subset=["ratio"])
+                st.line_chart(df_plot.set_index("ratio")["test_acc_best"], height=220)
+            except Exception:
+                pass
     else:
         st.info("No summary_results.csv found in outputs/. Run semi_supervised_experiment.py first.")
         return
@@ -291,6 +302,23 @@ def explain_adv_view():
             st.info(f"原标签: {label_names[true_label] if true_label < len(label_names) else true_label}; "
                     f"干净预测: {label_names[clean_res['pred']] if clean_res['pred'] < len(label_names) else clean_res['pred']}; "
                     f"对抗预测: {label_names[adv_res['pred']] if adv_res['pred'] < len(label_names) else adv_res['pred']}")
+
+    st.markdown("---")
+    st.subheader("防御评估（批量检测率）")
+    max_eval = st.slider("评估样本数", min_value=50, max_value=500, value=200, step=50)
+    conf_drop = st.slider("置信度下降阈值", min_value=0.0, max_value=1.0, value=0.3, step=0.05)
+    linf_thresh = st.slider("L∞ 阈值", min_value=0.0, max_value=0.3, value=0.05, step=0.01)
+    if st.button("运行防御评估", key="iea_defense"):
+        with st.spinner("批量生成对抗并检测..."):
+            stats = iea.batch_attack_and_detect(
+                model, X, y, epsilon=epsilon, max_samples=max_eval, conf_drop_thresh=conf_drop, linf_thresh=linf_thresh
+            )
+        st.write(
+            f"测试样本: {stats['tested']}, 攻击成功率: {stats['attack_success_rate']:.3f}, "
+            f"检测率: {stats['detection_rate']:.3f}"
+        )
+        df_rec = pd.DataFrame(stats["records"])
+        st.dataframe(df_rec.head(50))
 
 
 if __name__ == "__main__":

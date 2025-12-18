@@ -76,6 +76,60 @@ def fgsm_attack(
     return x_adv, clean, adv
 
 
+def batch_attack_and_detect(
+    model: bp_model_2017,
+    X: np.ndarray,
+    y: np.ndarray,
+    epsilon: float,
+    max_samples: int = 200,
+    conf_drop_thresh: float = 0.3,
+    linf_thresh: float = 0.05,
+) -> Dict:
+    """
+    Simple defense metric: mark as adversarial if
+    - the max prob drop exceeds conf_drop_thresh, OR
+    - the L_inf perturbation exceeds linf_thresh.
+    Returns detection rate and attack success.
+    """
+    n = min(max_samples, len(y))
+    idx = np.random.default_rng(0).choice(len(y), n, replace=False)
+    detected = 0
+    success = 0
+    records = []
+    for i in idx:
+        sample = X[i]
+        true_label = int(y[i])
+        x_adv, clean_res, adv_res = fgsm_attack(model, sample, true_label, epsilon)
+        clean_prob = float(clean_res["probs"][true_label]) if true_label < len(clean_res["probs"]) else 0.0
+        adv_prob = float(adv_res["probs"][true_label]) if true_label < len(adv_res["probs"]) else 0.0
+        drop = clean_prob - adv_prob
+        linf = float(np.abs(x_adv - sample).max())
+        is_detect = (drop >= conf_drop_thresh) or (linf >= linf_thresh)
+        if adv_res["pred"] != true_label:
+            success += 1
+        if is_detect:
+            detected += 1
+        records.append(
+            {
+                "idx": int(i),
+                "true": true_label,
+                "clean_pred": int(clean_res["pred"]),
+                "adv_pred": int(adv_res["pred"]),
+                "clean_prob": clean_prob,
+                "adv_prob": adv_prob,
+                "drop": drop,
+                "linf": linf,
+                "detected": is_detect,
+            }
+        )
+    return {
+        "tested": n,
+        "attack_success_rate": success / n if n else 0.0,
+        "detection_rate": detected / n if n else 0.0,
+        "records": records,
+    }
+
+
 def topk_to_table(attribution: np.ndarray, feature_names: List[str], k: int = 10) -> List[Dict]:
     idx = np.argsort(-attribution)[:k]
     return [{"feature": feature_names[i], "score": float(attribution[i])} for i in idx]
@@ -83,8 +137,8 @@ def topk_to_table(attribution: np.ndarray, feature_names: List[str], k: int = 10
 
 def bar_chart_topk(top_items: List[Dict], title: str, path: Path) -> Path:
     width, height = 900, 600
-    margin = 120
-    bar_width = 30
+    margin = 130
+    bar_width = 32
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
     font = ImageFont.load_default()
@@ -100,10 +154,10 @@ def bar_chart_topk(top_items: List[Dict], title: str, path: Path) -> Path:
         draw.text((x0, y0 - 14), f"{item['score']:.3f}", fill="black", font=font)
         # rotated label
         lbl = item["feature"][:40]
-        lbl_img = Image.new("RGBA", (260, 60), (255, 255, 255, 0))
+        lbl_img = Image.new("RGBA", (220, 60), (255, 255, 255, 0))
         d2 = ImageDraw.Draw(lbl_img)
         d2.text((0, 0), lbl, fill="black", font=font)
-        rotated = lbl_img.rotate(50, expand=True)
+        rotated = lbl_img.rotate(30, expand=True)
         img.paste(rotated, (int(x0 - 10), int(y1 + 10)), rotated)
     draw.text((margin, margin - 60), title, fill="black", font=font)
     img.save(path)

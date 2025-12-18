@@ -132,7 +132,7 @@ def save_bar_chart(
     draw.line((margin, margin, margin, height - margin), fill="black", width=2)
     draw.line((margin, height - margin, width - margin, height - margin), fill="black", width=2)
 
-    def draw_rotated_label(base_img: Image.Image, text: str, x: float, y: float, angle: int = 60):
+    def draw_rotated_label(base_img: Image.Image, text: str, x: float, y: float, angle: int = 30):
         # Render label on a transparent canvas, then rotate and paste.
         canvas = Image.new("RGBA", (260, 120), (255, 255, 255, 0))
         d = ImageDraw.Draw(canvas)
