@@ -237,10 +237,10 @@ def incremental_view():
 
     if st.button("评估增量模型", key="inc_eval"):
         try:
-            from incremental_adapter import incremental_eval
+            from incremental_eval import evaluate
 
             with st.spinner("加载并评估增量模型..."):
-                acc, y_true, y_pred = incremental_eval(
+                acc, y_true, y_pred = evaluate(
                     Path(model_path),
                     Path(data_dir),
                     max_per_class=max_per_class,
